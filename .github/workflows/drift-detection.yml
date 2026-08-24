@@ -32,17 +32,20 @@ jobs:
       # 3. Setup Terraform
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
+        env:
+          TF_GPG_DISABLE_KEY_EXPIRY_CHECK: "1"
+          GPG_DISABLE_KEY_EXPIRY_CHECK: "true"
         with:
           terraform_version: 1.10.5  
 
       # 4. Initialize Terraform
       - name: Terraform Init
-        id: init
+        id: init  
         run: terraform init
 
       - name: Terraform Plan (Drift Check)
         id: Plan
-        run: terraform Plan
+        run: terraform plan
 
       - name: Terraform Apply
         id: Apply
