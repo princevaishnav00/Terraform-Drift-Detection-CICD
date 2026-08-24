@@ -1,8 +1,6 @@
 # Main Terraform configuration file
 
 
-
-
 # VPC
 
 resource "aws_vpc" "main" {
