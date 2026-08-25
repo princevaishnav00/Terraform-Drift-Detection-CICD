@@ -3,23 +3,35 @@ name: Manual Resource Destroy
 # This enables the manual trigger button in GitHub
 on:
   workflow_dispatch:
+   
+  inputs:
+    confirm_destroy:
+      description: 'Type "DESTROY" to confirm'
+      required: true
+      type: string
 
 jobs:
   destroy:
     runs-on: ubuntu-latest
+    if: github.event.inputs.confirm_destroy == 'DESTROY'
+
+    defaults:
+      run:    
+        working-directory: ./terraform
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # Log into your cloud provider (example: AWS)
+      # Log into your AWS 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aaws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION  }}
 
-      # Example for Terraform
+      # Terraform workflow
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
@@ -28,3 +40,7 @@ jobs:
 
       - name: Terraform Destroy
         run: terraform destroy -auto-approve
+        
+
+
+    

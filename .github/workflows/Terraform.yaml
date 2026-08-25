@@ -4,7 +4,6 @@ name: "Terraform workflow"
 #   push: 
 #     branches: [main]
 
-  
      
 jobs:
   terraform:
@@ -12,8 +11,7 @@ jobs:
 
     defaults:
       run:
-        working-directory: ./terraform  
-
+        working-directory: ./terraform
     steps:
       - name: checkout code 
         uses: actions/checkout@v4
@@ -58,8 +56,3 @@ jobs:
         with:
           name: terraform-output
           path: ./terraform/output.txt 
-
-      - name: terraform destroy
-        id: destroy
-        run: terraform destroy -auto-approve tfplan 
-        continue-on-error: true
