@@ -1,6 +1,11 @@
+name: "slack-notification"
+
 on:
-  # push:
-    #  branches: [main]
+  workflow_run:
+    workflows: ["Terraform workflow"]
+    types:
+      - completed
+
 jobs: 
     job1:
       runs-on: ubuntu-latest
@@ -11,7 +16,7 @@ jobs:
               with:
                 status: starting
                 channel: '#infra-alerts'
-                message: Terraform Infrastrucute Creating in AWS ...
+                message: Terraform Infrastrucute created successfully in AWS !!
 
            -  uses: act10ns/slack@v2 
               with: 

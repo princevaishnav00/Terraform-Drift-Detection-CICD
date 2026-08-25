@@ -59,4 +59,7 @@ jobs:
           name: terraform-output
           path: ./terraform/output.txt 
 
-      
+      - name: terraform destroy
+        id: destroy
+        run: terraform destroy -auto-approve tfplan 
+        continue-on-error: true
