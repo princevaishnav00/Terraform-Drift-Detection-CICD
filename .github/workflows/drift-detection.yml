@@ -3,51 +3,58 @@ name: 'Terraform Drift Detection'
 on:
   # Run daily at 08:00 AM UTC (adjust schedule as needed)
   # schedule:
- #   - cron: '*/6 * * * *'
+#   - cron: '*/6 * * * *'
   # Allow manual trigger from the GitHub UI
-  # workflow_dispatch:
+  workflow_dispatch:
 
 jobs:
   drift_detection:
     name: 'Terraform Drift Check'
     runs-on: ubuntu-latest
 
-    env:
-      TF_GPG_DISABLE_KEY_EXPIRY_CHECK: "1"
-
     defaults:
       run:
         working-directory: ./terraform
-
     steps:
-      # 1. Checkout repository code
-      - name: Checkout Code
+      - name: checkout code 
         uses: actions/checkout@v4
 
-      # 2. Setup AWS credentials
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
+      - name: set up terraform
+        uses: hashicorp/setup-terraform@v1 
+        with:
+          terraform_version: "1.15.9"
+          terraform_wrapper: false
+
+      - name: Configure AWS credential 
+        uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION || 'ap-south-1' }}
+          aws-region: ${{ secrets.AWS_REGION  }}
 
-      # 3. Setup Terraform
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: 1.10.5
-
-      # 4. Initialize Terraform
       - name: Terraform Init
         id: init
         run: terraform init
 
-      # 5. Terraform Plan & Drift Detection
-      - name: Terraform Plan (Drift Check)
-        id: Plan
-        run: terraform plan
-
-      - name: Terraform Apply
-        id: Apply
-        run: terraform Apply
+      - name: Terraform Plan - Drift Check
+        id: drift_check
+        shell: bash
+        run: |
+          set +e
+      
+          terraform plan -detailed-exitcode
+      
+          EXIT_CODE=$?
+      
+          echo "exit_code=$EXIT_CODE" >> "$GITHUB_OUTPUT"
+      
+          if [ "$EXIT_CODE" -eq 0 ]; then
+            echo "No drift detected."
+            exit 0
+          elif [ "$EXIT_CODE" -eq 2 ]; then
+            echo "Drift detected!"
+            exit 0
+          else
+            echo "Terraform plan failed."
+            exit 1
+          fi

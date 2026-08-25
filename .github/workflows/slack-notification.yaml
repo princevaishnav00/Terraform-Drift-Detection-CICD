@@ -1,29 +1,48 @@
-name: "slack-notification"
+name: "Slack Notification"
 
 on:
   workflow_run:
-    workflows: ["Terraform workflow"]
+    workflows: ["Terraform Drift Detection"]
     types:
       - completed
 
-jobs: 
-    job1:
-      runs-on: ubuntu-latest
-      env:
-        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-      steps:
-           -  uses: act10ns/slack@v2 
-              with:
-                status: starting
-                channel: '#infra-alerts'
-                message: Terraform Infrastrucute created successfully in AWS !!
+jobs:
 
-           -  uses: act10ns/slack@v2 
-              with: 
-                channel: '#infra-alerts'
-                status: ${{ job.status }}
-                steps: ${{ toJson(steps) }}
-              if: always()   
-           
-  
+  drift_detected:
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    runs-on: ubuntu-latest
 
+    steps:
+      - name: Send Drift Alert
+        uses: act10ns/slack@v2
+        with:
+          status: failure
+          channel: "#infra-alerts"
+          message: "🚨 Terraform Drift Detected! AWS infrastructure differs from Terraform configuration. Please investigate."
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+
+  no_drift:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+      
+    steps:
+      - name: Send Success Notification
+        uses: act10ns/slack@v2
+        with:
+          status: success
+          channel: "#infra-alerts"
+          message: "✅ Terraform Drift Check Passed! No infrastructure drift detected in AWS."
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+      - name: Send Terraform Error Notification
+        if: steps.status.outputs.status == 'TERRAFORM_ERROR'
+        uses: act10ns/slack@v2
+        with:
+          status: failure
+          channel: "#infra-alerts"
+          message: "❌ Terraform Drift Check Failed! Terraform encountered an error while running the drift check."
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
