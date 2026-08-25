@@ -4,7 +4,7 @@
 # VPC
 
 resource "aws_vpc" "main" {
-  cidr_block = "10.0.0.0/16"
+  cidr_block           = "10.0.0.0/16"
   enable_dns_hostnames = true
   enable_dns_support   = true
 
@@ -15,8 +15,8 @@ resource "aws_vpc" "main" {
 }
 
 resource "aws_subnet" "main" {
-  vpc_id     = aws_vpc.main.id
-  cidr_block = "10.0.1.0/24"
+  vpc_id                  = aws_vpc.main.id
+  cidr_block              = "10.0.1.0/24"
   map_public_ip_on_launch = true
 
   tags = {
@@ -52,25 +52,25 @@ resource "aws_route_table_association" "main" {
 
 
 # ------------- Security group ----------------------
- 
+
 resource "aws_security_group" "main" {
   name        = "drift-demo-sg"
   description = "Security group for drift demo"
   vpc_id      = aws_vpc.main.id
 
   ingress {
-    from_port = 80
-    to_port   = 80
-    protocol  = "tcp"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
-    
+
 
   }
 
   egress {
-    from_port = 0
-    to_port   = 0
-    protocol  = "-1"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
 
@@ -84,9 +84,9 @@ resource "aws_security_group" "main" {
 # ----------------- EC2-instance ------------------------- 
 
 resource "aws_instance" "main" {
-  ami           = var.ami_id
-  instance_type = var.aws_instance_type
-  subnet_id     = aws_subnet.main.id
+  ami                         = var.ami_id
+  instance_type               = var.aws_instance_type
+  subnet_id                   = aws_subnet.main.id
   associate_public_ip_address = true
 
   vpc_security_group_ids = [
