@@ -12,6 +12,9 @@ jobs:
     name: 'Terraform Drift Check'
     runs-on: ubuntu-latest
 
+    env:
+      TF_GPG_DISABLE_KEY_EXPIRY_CHECK: "1"
+
     defaults:
       run:
         working-directory: ./terraform
@@ -27,26 +30,115 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ${{ secrets.AWS_REGION || 'ap-south-1' }}
 
       # 3. Setup Terraform
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
-        env:
-          TF_GPG_DISABLE_KEY_EXPIRY_CHECK: "1"
-          GPG_DISABLE_KEY_EXPIRY_CHECK: "true"
         with:
-          terraform_version: 1.10.5  
+          terraform_version: 1.10.5
 
       # 4. Initialize Terraform
       - name: Terraform Init
-        id: init  
+        id: init
         run: terraform init
 
+      # 5. Terraform Plan & Drift Detection
       - name: Terraform Plan (Drift Check)
-        id: Plan
-        run: terraform plan
+        id: plan
+        continue-on-error: true
+        run: |
+          # detailed-exitcode returns:
+          # 0 - Succeeded, diff is empty (no drift)
+          # 1 - Errored
+          # 2 - Succeeded, a non-empty diff exists (drift detected)
+          
+          set +e
+          terraform plan -detailed-exitcode -no-color -out=tfplan > plan_output.txt
+          EXIT_CODE=$?
+          echo "exitcode=$EXIT_CODE" >> $GITHUB_OUTPUT
+          
+          if [ $EXIT_CODE -eq 2 ]; then
+            echo "drift_detected=true" >> $GITHUB_OUTPUT
+            echo "::warning::Terraform drift detected!"
+          elif [ $EXIT_CODE -eq 0 ]; then
+            echo "drift_detected=false" >> $GITHUB_OUTPUT
+            echo "No drift detected."
+          else
+            echo "::error::Terraform plan failed!"
+            exit $EXIT_CODE
+          fi
 
-      - name: Terraform Apply
-        id: Apply
-        run: terraform Apply
+      # 6. Prepare Slack Message Content (If Drift Detected)
+      - name: Prepare Slack Notification
+        if: steps.plan.outputs.drift_detected == 'true'
+        id: slack_payload
+        run: |
+          PLAN_SUMMARY=$(grep -E 'Plan:|No changes.' plan_output.txt | tail -n 1 || echo "Changes detected in infrastructure.")
+          CLEAN_SUMMARY=$(echo "$PLAN_SUMMARY" | sed 's/"/\"/g')
+          echo "summary=$CLEAN_SUMMARY" >> $GITHUB_OUTPUT
+
+      # 7. Send Slack Alert (If Drift Detected)
+      - name: Send Slack Notification
+        if: steps.plan.outputs.drift_detected == 'true' && secrets.SLACK_WEBHOOK_URL != ''
+        uses: slackapi/slack-github-action@v1.26.0
+        with:
+          payload: |
+            {
+              "text": "🚨 *Terraform Infrastructure Drift Detected!*",
+              "blocks": [
+                {
+                  "type": "header",
+                  "text": {
+                    "type": "plain_text",
+                    "text": "⚠️ Infrastructure Drift Alert",
+                    "emoji": true
+                  }
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Repository:*\n<${{ github.server_url }}/${{ github.repository }}|${{ github.repository }}>"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Environment / Directory:*\n`./terraform`"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Triggered By:*\n${{ github.event_name }}"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*AWS Region:*\n`${{ secrets.AWS_REGION || 'ap-south-1' }}`"
+                    }
+                  ]
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Plan Output Summary:*\n```${{ steps.slack_payload.outputs.summary }}```"
+                  }
+                },
+                {
+                  "type": "actions",
+                  "elements": [
+                    {
+                      "type": "button",
+                      "text": {
+                        "type": "plain_text",
+                        "text": "View Action Run",
+                        "emoji": true
+                      },
+                      "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                    }
+                  ]
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
