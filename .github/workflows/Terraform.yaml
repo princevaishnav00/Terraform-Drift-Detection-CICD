@@ -1,0 +1,53 @@
+name: "Terraform workflow"
+
+on: 
+  push: 
+    branches: [main]
+     
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: checkout code 
+        uses: actions/checkout@v4
+
+      - name: set up terraform
+        uses: hashicorp/setup-terraform@v1 
+        with:
+          terraform_version: 1.15.9
+          terraform_wrapper: false
+
+      - name: Configure AWS credential 
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION  }}
+      
+      - name: terraform init
+        run: terraform init 
+
+      - name: terraform validate
+        run: terraform validate 
+
+      - name: terraform formate Check
+        run: terraform fmt -check
+
+      - name: terraform plan
+        id: plan
+        run: terraform plan -no-color -out=tfplan | tee output.txt
+        continue-on-error: false
+
+      - name: terraform apply
+        id: apply
+        run: terraform apply -auto-approve tfplan 
+        continue-on-error: false
+
+      - name: upload terraform output
+        uses: actions/upload-artifact@v4 
+        with:
+          name: terraform-output
+          path: output.txt
+
+      
