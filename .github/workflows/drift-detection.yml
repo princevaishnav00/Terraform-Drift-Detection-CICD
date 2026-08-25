@@ -3,7 +3,7 @@ name: 'Terraform Drift Detection'
 on:
   # Run daily at 08:00 AM UTC (adjust schedule as needed)
   schedule:
-    - cron: '*/6 * * * *'
+ #   - cron: '*/6 * * * *'
   # Allow manual trigger from the GitHub UI
   workflow_dispatch:
 
