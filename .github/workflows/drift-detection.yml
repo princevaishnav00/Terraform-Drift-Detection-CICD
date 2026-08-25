@@ -2,10 +2,10 @@ name: 'Terraform Drift Detection'
 
 on:
   # Run daily at 08:00 AM UTC (adjust schedule as needed)
-  schedule:
-    - cron: '*/6 * * * *'
+  # schedule:
+ #   - cron: '*/6 * * * *'
   # Allow manual trigger from the GitHub UI
-  workflow_dispatch:
+  # workflow_dispatch:
 
 jobs:
   drift_detection:
@@ -45,100 +45,9 @@ jobs:
 
       # 5. Terraform Plan & Drift Detection
       - name: Terraform Plan (Drift Check)
-        id: plan
-        continue-on-error: true
-        run: |
-          # detailed-exitcode returns:
-          # 0 - Succeeded, diff is empty (no drift)
-          # 1 - Errored
-          # 2 - Succeeded, a non-empty diff exists (drift detected)
-          
-          set +e
-          terraform plan -detailed-exitcode -no-color -out=tfplan > plan_output.txt
-          EXIT_CODE=$?
-          echo "exitcode=$EXIT_CODE" >> $GITHUB_OUTPUT
-          
-          if [ $EXIT_CODE -eq 2 ]; then
-            echo "drift_detected=true" >> $GITHUB_OUTPUT
-            echo "::warning::Terraform drift detected!"
-          elif [ $EXIT_CODE -eq 0 ]; then
-            echo "drift_detected=false" >> $GITHUB_OUTPUT
-            echo "No drift detected."
-          else
-            echo "::error::Terraform plan failed!"
-            exit $EXIT_CODE
-          fi
+        id: Plan
+        run: terraform plan
 
-      # 6. Prepare Slack Message Content (If Drift Detected)
-      - name: Prepare Slack Notification
-        if: steps.plan.outputs.drift_detected == 'true'
-        id: slack_payload
-        run: |
-          PLAN_SUMMARY=$(grep -E 'Plan:|No changes.' plan_output.txt | tail -n 1 || echo "Changes detected in infrastructure.")
-          CLEAN_SUMMARY=$(echo "$PLAN_SUMMARY" | sed 's/"/\"/g')
-          echo "summary=$CLEAN_SUMMARY" >> $GITHUB_OUTPUT
-
-      # 7. Send Slack Alert (If Drift Detected)
-      - name: Send Slack Notification
-        if: steps.plan.outputs.drift_detected == 'true' && secrets.SLACK_WEBHOOK_URL != ''
-        uses: slackapi/slack-github-action@v1.26.0
-        with:
-          payload: |
-            {
-              "text": "🚨 *Terraform Infrastructure Drift Detected!*",
-              "blocks": [
-                {
-                  "type": "header",
-                  "text": {
-                    "type": "plain_text",
-                    "text": "⚠️ Infrastructure Drift Alert",
-                    "emoji": true
-                  }
-                },
-                {
-                  "type": "section",
-                  "fields": [
-                    {
-                      "type": "mrkdwn",
-                      "text": "*Repository:*\n<${{ github.server_url }}/${{ github.repository }}|${{ github.repository }}>"
-                    },
-                    {
-                      "type": "mrkdwn",
-                      "text": "*Environment / Directory:*\n`./terraform`"
-                    },
-                    {
-                      "type": "mrkdwn",
-                      "text": "*Triggered By:*\n${{ github.event_name }}"
-                    },
-                    {
-                      "type": "mrkdwn",
-                      "text": "*AWS Region:*\n`${{ secrets.AWS_REGION || 'ap-south-1' }}`"
-                    }
-                  ]
-                },
-                {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "*Plan Output Summary:*\n```${{ steps.slack_payload.outputs.summary }}```"
-                  }
-                },
-                {
-                  "type": "actions",
-                  "elements": [
-                    {
-                      "type": "button",
-                      "text": {
-                        "type": "plain_text",
-                        "text": "View Action Run",
-                        "emoji": true
-                      },
-                      "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-                    }
-                  ]
-                }
-              ]
-            }
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+      - name: Terraform Apply
+        id: Apply
+        run: terraform Apply

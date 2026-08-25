@@ -1,0 +1,24 @@
+on:
+  push:
+     branches: [main]
+jobs: 
+    job1:
+      runs-on: ubuntu-latest
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      steps:
+           -  uses: act10ns/slack@v2 
+              with:
+                status: starting
+                channel: '#infra-alerts'
+                message: Terraform Infrastrucute Creating in AWS ...
+
+           -  uses: act10ns/slack@v2 
+              with: 
+                channel: '#infra-alerts'
+                status: ${{ job.status }}
+                steps: ${{ toJson(steps) }}
+              if: always()   
+           
+  
+
