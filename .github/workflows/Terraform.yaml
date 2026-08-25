@@ -15,7 +15,7 @@ jobs:
       - name: set up terraform
         uses: hashicorp/setup-terraform@v1 
         with:
-          terraform_version: 1.15.9
+          terraform_version: "1.15.9"
           terraform_wrapper: false
 
       - name: Configure AWS credential 
@@ -25,19 +25,22 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION  }}
       
+      - name: terraform formate Check
+        run: terraform fmt -check
+
       - name: terraform init
         run: terraform init 
 
       - name: terraform validate
         run: terraform validate 
-
-      - name: terraform formate Check
-        run: terraform fmt -check
-
+    
       - name: terraform plan
         id: plan
-        run: terraform plan -no-color -out=tfplan | tee output.txt
+        run: terraform plan -no-color -out=tfplan 
         continue-on-error: false
+
+      - name: generate readable text plan
+        run: terraform show -no-color tfplan > output.txt
 
       - name: terraform apply
         id: apply
