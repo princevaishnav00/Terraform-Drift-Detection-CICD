@@ -5,9 +5,9 @@ on:
   workflow_dispatch:
     inputs:
       confirm_destroy:
-      description: 'Type "DESTROY" to confirm'
-      required: true
-      type: string
+        description: 'Type "DESTROY" to confirm'
+        required: true
+        type: string
 
 jobs:
   destroy:
