@@ -3,9 +3,8 @@ name: Manual Resource Destroy
 # This enables the manual trigger button in GitHub
 on:
   workflow_dispatch:
-   
-  inputs:
-    confirm_destroy:
+    inputs:
+      confirm_destroy:
       description: 'Type "DESTROY" to confirm'
       required: true
       type: string
